@@ -177,9 +177,208 @@ class ArticleController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $articles = $review->articles()->orderBy('created_at', 'desc')->paginate(20);
+        // Get per_page from request, default to 100
+        $perPage = $request->input('per_page', 100);
+        $perPage = min(max($perPage, 10), 100); // Between 10 and 100
+
+        // Only select necessary columns for better performance
+        $articles = $review->articles()
+            ->select('id', 'review_id', 'title', 'authors', 'url', 'abstract', 'created_at')
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage);
 
         return response()->json($articles);
+    }
+
+    /**
+     * Update an article.
+     */
+    public function update(Article $article, Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $review = $article->review;
+
+        // Check if user has access to this review
+        if ($review->user_id !== $user->id && !$review->hasMember($user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'title' => 'nullable|string|max:255',
+            'authors' => 'nullable|string',
+            'abstract' => 'nullable|string',
+            'url' => 'nullable|url',
+            'status' => 'nullable|in:included,excluded,undecided',
+            'screening_notes' => 'nullable|string',
+            'keywords' => 'nullable|array',
+            'journal' => 'nullable|string',
+            'year' => 'nullable|integer',
+        ]);
+
+        $article->update($validated);
+
+        return response()->json([
+            'message' => 'Article updated successfully',
+            'data' => $article,
+        ]);
+    }
+
+    /**
+     * Update article screening decision.
+     */
+    public function updateScreening(Article $article, Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $review = $article->review;
+
+        // Check if user has access to this review
+        if ($review->user_id !== $user->id && !$review->hasMember($user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'screening_decision' => 'required|in:included,excluded,undecided',
+            'screening_notes' => 'nullable|string',
+        ]);
+
+        $article->update([
+            'status' => $validated['screening_decision'],
+            'screening_notes' => $validated['screening_notes'] ?? $article->screening_notes,
+        ]);
+
+        return response()->json([
+            'message' => 'Screening updated successfully',
+            'data' => $article,
+        ]);
+    }
+
+    /**
+     * Bulk update articles.
+     */
+    public function bulkUpdate(Review $review, Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        // Check if user has access to this review
+        if ($review->user_id !== $user->id && !$review->hasMember($user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'article_ids' => 'required|array',
+            'article_ids.*' => 'integer',
+            'screening_decision' => 'nullable|in:include,exclude,maybe',
+            'screening_notes' => 'nullable|string',
+        ]);
+
+        try {
+            $updateData = [];
+            if ($validated['screening_decision'] ?? null) {
+                $updateData['status'] = $validated['screening_decision'];
+            }
+            if ($validated['screening_notes'] ?? null) {
+                $updateData['screening_notes'] = $validated['screening_notes'];
+            }
+
+            if (!empty($updateData)) {
+                Article::whereIn('id', $validated['article_ids'])
+                    ->where('review_id', $review->id)
+                    ->update($updateData);
+            }
+
+            return response()->json([
+                'message' => 'Articles updated successfully',
+                'data' => [
+                    'updated_count' => count($validated['article_ids']),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to update articles: ' . $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * Detect duplicate articles in a review.
+     */
+    public function detectDuplicates(Review $review, Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        // Check if user has access to this review
+        if ($review->user_id !== $user->id && !$review->hasMember($user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $articles = $review->articles()->get();
+        $duplicates = [];
+        $processed = [];
+
+        foreach ($articles as $i => $article1) {
+            foreach ($articles as $j => $article2) {
+                // Skip if same article or already processed
+                if ($i >= $j || in_array([$article1->id, $article2->id], $processed)) {
+                    continue;
+                }
+
+                // Check if same DOI
+                if ($article1->url && $article2->url && $article1->url === $article2->url) {
+                    $duplicates[] = [
+                        'article1_id' => $article1->id,
+                        'article2_id' => $article2->id,
+                        'article1_title' => $article1->title,
+                        'article2_title' => $article2->title,
+                        'similarity' => 100,
+                        'reason' => 'Same DOI/URL',
+                    ];
+                    $processed[] = [$article1->id, $article2->id];
+                    continue;
+                }
+
+                // Check title similarity using Levenshtein distance
+                $similarity = $this->calculateSimilarity($article1->title, $article2->title);
+                if ($similarity >= 85) {
+                    $duplicates[] = [
+                        'article1_id' => $article1->id,
+                        'article2_id' => $article2->id,
+                        'article1_title' => $article1->title,
+                        'article2_title' => $article2->title,
+                        'similarity' => $similarity,
+                        'reason' => 'Similar title',
+                    ];
+                    $processed[] = [$article1->id, $article2->id];
+                }
+            }
+        }
+
+        return response()->json([
+            'message' => 'Duplicate detection completed',
+            'data' => [
+                'duplicates' => $duplicates,
+                'total_duplicates' => count($duplicates),
+            ],
+        ]);
+    }
+
+    /**
+     * Calculate similarity between two strings using Levenshtein distance.
+     */
+    private function calculateSimilarity(string $str1, string $str2): int
+    {
+        $str1 = strtolower(trim($str1));
+        $str2 = strtolower(trim($str2));
+
+        $len1 = strlen($str1);
+        $len2 = strlen($str2);
+        $maxLen = max($len1, $len2);
+
+        if ($maxLen === 0) {
+            return 100;
+        }
+
+        $distance = levenshtein($str1, $str2);
+        $similarity = (1 - ($distance / $maxLen)) * 100;
+
+        return (int) round($similarity);
     }
 
     /**

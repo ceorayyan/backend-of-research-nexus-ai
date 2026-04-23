@@ -11,6 +11,9 @@ use App\Http\Controllers\Api\ReviewMemberController;
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
+// Public settings route
+Route::get('/settings', [\App\Http\Controllers\Api\SettingsController::class, 'getSettings']);
+
 // Protected routes
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
@@ -23,6 +26,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // Article routes
     Route::post('/reviews/{review}/articles', [ArticleController::class, 'store']);
     Route::get('/reviews/{review}/articles', [ArticleController::class, 'index']);
+    Route::post('/reviews/{review}/articles/detect-duplicates', [ArticleController::class, 'detectDuplicates']);
+    Route::put('/reviews/{review}/articles/bulk-update', [ArticleController::class, 'bulkUpdate']);
+    Route::put('/articles/{article}', [ArticleController::class, 'update']);
+    Route::put('/articles/{article}/screening', [ArticleController::class, 'updateScreening']);
     Route::delete('/articles/{article}', [ArticleController::class, 'destroy']);
 
     // Review member routes

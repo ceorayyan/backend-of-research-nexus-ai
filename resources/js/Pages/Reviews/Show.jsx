@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, useParams } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import PrimaryButton from '@/Components/PrimaryButton';
 import DangerButton from '@/Components/DangerButton';
 import InputError from '@/Components/InputError';
@@ -10,8 +10,7 @@ import UploadArticleSection from '@/Components/UploadArticleSection';
 import InviteMemberSection from '@/Components/InviteMemberSection';
 import MemberManagement from '@/Components/MemberManagement';
 
-export default function ReviewShow() {
-    const { id } = useParams();
+export default function ReviewShow({ id }) {
     const [review, setReview] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);

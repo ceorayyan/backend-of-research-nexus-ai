@@ -111,10 +111,12 @@ class ReviewMemberController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
+        // Only select necessary columns for better performance
         $members = $review->members()
-            ->with('user')
+            ->with('user:id,name,email')
+            ->select('id', 'review_id', 'user_id', 'email', 'role', 'status', 'invited_at', 'accepted_at', 'created_at')
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->get(); // Use get() instead of paginate() since members list is usually small
 
         return response()->json($members);
     }

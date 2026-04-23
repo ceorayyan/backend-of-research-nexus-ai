@@ -10,4 +10,15 @@ export default defineConfig({
         }),
         react(),
     ],
+    build: {
+        minify: 'esbuild',
+        rollupOptions: {
+            output: {
+                manualChunks: undefined,
+            },
+        },
+    },
+    ssr: {
+        noExternal: ['@inertiajs/react'],
+    },
 });

@@ -38,12 +38,13 @@ class ReviewController extends Controller
         $user = $request->user();
         
         // Get reviews created by user and reviews they're members of (by user_id or email)
+        // Only load user and article count, not all articles
         $reviews = Review::where('user_id', $user->id)
             ->orWhereHas('members', function ($query) use ($user) {
                 $query->where('user_id', $user->id)
                       ->orWhere('email', $user->email);
             })
-            ->with(['user', 'articles', 'members.user'])
+            ->with(['user:id,name,email'])
             ->withCount('articles')
             ->orderBy('created_at', 'desc')
             ->paginate(15);
@@ -63,7 +64,9 @@ class ReviewController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $review->load(['user', 'articles', 'members.user']);
+        // Only load user and members, not all articles
+        $review->load(['user:id,name,email', 'members.user:id,name,email']);
+        $review->loadCount('articles');
 
         return response()->json($review);
     }
