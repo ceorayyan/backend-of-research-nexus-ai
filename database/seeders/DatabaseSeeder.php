@@ -15,6 +15,9 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Create admin user
+        $this->call(AdminUserSeeder::class);
+
         // Create test users
         User::factory()->create([
             'name' => 'Test User',
@@ -30,4 +33,3 @@ class DatabaseSeeder extends Seeder
         $this->call(ReviewSeeder::class);
     }
 }
-
