@@ -37,11 +37,11 @@ Route::middleware('auth')->group(function () {
     // Review routes
     Route::get('/reviews', function () {
         return Inertia::render('Reviews/Index');
-    })->name('reviews.index');
+    })->name('web.reviews.index');
 
     Route::get('/reviews/{id}', function ($id) {
         return Inertia::render('Reviews/Show', ['id' => $id]);
-    })->name('reviews.show');
+    })->name('web.reviews.show');
 });
 
 // Admin routes only
