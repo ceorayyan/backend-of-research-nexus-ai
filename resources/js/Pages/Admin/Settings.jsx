@@ -1,9 +1,10 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, useForm } from '@inertiajs/react';
-import { useRef } from 'react';
+import { Head, useForm, router } from '@inertiajs/react';
+import { useRef, useState } from 'react';
 
 export default function AdminSettings({ settings: initialSettings }) {
     const fileInputRef = useRef(null);
+    const [previewUrl, setPreviewUrl] = useState(null);
     const { data, setData, post, errors, processing } = useForm({
         website_name: initialSettings?.website_name || 'StataNexus.Ai',
         logo: null,
@@ -13,6 +14,18 @@ export default function AdminSettings({ settings: initialSettings }) {
         const file = e.target.files?.[0];
         if (file) {
             setData('logo', file);
+            // Create preview URL
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setPreviewUrl(reader.result);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleRemoveLogo = () => {
+        if (confirm('Are you sure you want to remove the logo?')) {
+            router.post(route('admin.settings.removeLogo'));
         }
     };
 
@@ -27,8 +40,13 @@ export default function AdminSettings({ settings: initialSettings }) {
         post(route('admin.settings.update'), {
             data: formData,
             forceFormData: true,
+            onSuccess: () => {
+                setPreviewUrl(null);
+            },
         });
     };
+
+    const currentLogoUrl = previewUrl || initialSettings?.logo_url;
 
     return (
         <AuthenticatedLayout
@@ -75,17 +93,33 @@ export default function AdminSettings({ settings: initialSettings }) {
                                 <div className="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
                                     <p className="text-xs text-gray-600 mb-3 font-medium">Logo Preview:</p>
                                     <div className="flex items-center gap-4">
-                                        {initialSettings?.logo_url ? (
+                                        {currentLogoUrl ? (
                                             <>
                                                 <img
-                                                    src={initialSettings.logo_url}
+                                                    src={currentLogoUrl}
                                                     alt="Logo preview"
-                                                    className="h-16 w-16 object-contain rounded border border-gray-300"
+                                                    className="h-16 w-16 object-contain rounded border border-gray-300 bg-white"
+                                                    onError={(e) => {
+                                                        e.target.style.display = 'none';
+                                                        e.target.nextElementSibling.style.display = 'flex';
+                                                    }}
                                                 />
-                                                <div>
-                                                    <p className="text-sm font-medium text-gray-900">Image Logo</p>
-                                                    <p className="text-xs text-gray-500">Current logo</p>
+                                                <div className="w-16 h-16 bg-gray-900 text-white rounded flex items-center justify-center font-bold text-lg" style={{ display: 'none' }}>
+                                                    {data.website_name.charAt(0).toUpperCase()}
                                                 </div>
+                                                <div className="flex-1">
+                                                    <p className="text-sm font-medium text-gray-900">Image Logo</p>
+                                                    <p className="text-xs text-gray-500">{previewUrl ? 'New logo (not saved yet)' : 'Current logo'}</p>
+                                                </div>
+                                                {initialSettings?.logo_url && !previewUrl && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleRemoveLogo}
+                                                        className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+                                                    >
+                                                        Remove Logo
+                                                    </button>
+                                                )}
                                             </>
                                         ) : (
                                             <div className="flex items-center gap-3">
@@ -129,17 +163,20 @@ export default function AdminSettings({ settings: initialSettings }) {
                                     Header Preview
                                 </label>
                                 <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg flex items-center gap-3">
-                                    {initialSettings?.logo_url ? (
+                                    {currentLogoUrl ? (
                                         <img
-                                            src={initialSettings.logo_url}
+                                            src={currentLogoUrl}
                                             alt="Logo preview"
                                             className="h-8 w-8 object-contain rounded"
+                                            onError={(e) => {
+                                                e.target.style.display = 'none';
+                                                e.target.nextElementSibling.style.display = 'flex';
+                                            }}
                                         />
-                                    ) : (
-                                        <div className="w-8 h-8 bg-gray-900 text-white rounded flex items-center justify-center font-bold text-xs">
-                                            {data.website_name.charAt(0).toUpperCase()}
-                                        </div>
-                                    )}
+                                    ) : null}
+                                    <div className="w-8 h-8 bg-gray-900 text-white rounded flex items-center justify-center font-bold text-xs" style={{ display: currentLogoUrl ? 'none' : 'flex' }}>
+                                        {data.website_name.charAt(0).toUpperCase()}
+                                    </div>
                                     <span className="font-semibold text-gray-900">{data.website_name}</span>
                                 </div>
                             </div>

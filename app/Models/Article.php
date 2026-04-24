@@ -16,6 +16,16 @@ class Article extends Model
         'keywords' => 'array',
     ];
 
+    protected $appends = ['screening_decision'];
+
+    /**
+     * Get the screening decision (alias for status).
+     */
+    public function getScreeningDecisionAttribute(): ?string
+    {
+        return $this->status;
+    }
+
     /**
      * Get the review that owns the article.
      */

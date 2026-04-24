@@ -85,7 +85,14 @@ class SettingsController extends Controller
         try {
             if (Storage::disk('local')->exists('settings.json')) {
                 $settings = json_decode(Storage::disk('local')->get('settings.json'), true);
-                return array_merge($defaultSettings, $settings);
+                $mergedSettings = array_merge($defaultSettings, $settings);
+                
+                // Regenerate logo_url for current environment if logo_path exists
+                if (!empty($mergedSettings['logo_path'])) {
+                    $mergedSettings['logo_url'] = Storage::disk('public')->url($mergedSettings['logo_path']);
+                }
+                
+                return $mergedSettings;
             }
         } catch (\Exception $e) {
             \Log::error('Failed to read settings: ' . $e->getMessage());

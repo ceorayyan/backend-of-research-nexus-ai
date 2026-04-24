@@ -22,7 +22,7 @@
         <div class="content">
             <p>Hi{{ $invitee ? ' ' . $invitee->name : '' }},</p>
             
-            <p><strong>{{ $inviter->name }}</strong> has invited you to join a systematic review on Rayyan:</p>
+            <p><strong>{{ $inviter->name }}</strong> has invited you to join a systematic review on {{ $websiteName }}:</p>
             
             <div class="review-details">
                 <h3>{{ $review->title }}</h3>
@@ -38,7 +38,7 @@
             
             @if(!$isRegistered)
                 <div class="notice">
-                    <p><strong>Note:</strong> You need to create a Rayyan account first before you can accept this invitation.</p>
+                    <p><strong>Note:</strong> You need to create a {{ $websiteName }} account first before you can accept this invitation.</p>
                 </div>
                 
                 <p>To get started:</p>
@@ -58,11 +58,11 @@
             <p>Or copy and paste this link in your browser:</p>
             <p><small>{{ $acceptUrl }}</small></p>
             
-            <p>Best regards,<br>The Rayyan Team</p>
+            <p>Best regards,<br>The {{ $websiteName }} Team</p>
         </div>
         
         <div class="footer">
-            <p>&copy; {{ date('Y') }} Rayyan. All rights reserved.</p>
+            <p>&copy; {{ date('Y') }} {{ $websiteName }}. All rights reserved.</p>
         </div>
     </div>
 </body>

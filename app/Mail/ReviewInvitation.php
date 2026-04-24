@@ -31,6 +31,9 @@ class ReviewInvitation extends Mailable
 
     public function content(): Content
     {
+        // Get website settings
+        $settings = $this->getSettings();
+        
         return new Content(
             view: 'emails.review-invitation',
             with: [
@@ -42,8 +45,21 @@ class ReviewInvitation extends Mailable
                     ? url("/reviews/{$this->review->id}/accept")
                     : url("/signup?redirect=/reviews/{$this->review->id}/accept"),
                 'isRegistered' => $this->invitee !== null,
+                'websiteName' => $settings['website_name'] ?? 'Research Nexus',
             ],
         );
+    }
+
+    private function getSettings(): array
+    {
+        try {
+            if (\Storage::disk('local')->exists('settings.json')) {
+                return json_decode(\Storage::disk('local')->get('settings.json'), true) ?? [];
+            }
+        } catch (\Exception $e) {
+            \Log::error('Failed to read settings in email: ' . $e->getMessage());
+        }
+        return [];
     }
 
     public function attachments(): array

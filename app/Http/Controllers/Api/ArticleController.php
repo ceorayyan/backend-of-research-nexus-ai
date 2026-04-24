@@ -183,7 +183,7 @@ class ArticleController extends Controller
 
         // Only select necessary columns for better performance
         $articles = $review->articles()
-            ->select('id', 'review_id', 'title', 'authors', 'url', 'abstract', 'created_at')
+            ->select('id', 'review_id', 'title', 'authors', 'url', 'abstract', 'journal', 'year', 'keywords', 'status', 'screening_notes', 'created_at')
             ->orderBy('created_at', 'desc')
             ->paginate($perPage);
 
@@ -309,46 +309,71 @@ class ArticleController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $articles = $review->articles()->get();
+        // Use chunking to avoid memory issues with large datasets
         $duplicates = [];
         $processed = [];
+        $chunkSize = 100;
 
-        foreach ($articles as $i => $article1) {
-            foreach ($articles as $j => $article2) {
-                // Skip if same article or already processed
-                if ($i >= $j || in_array([$article1->id, $article2->id], $processed)) {
-                    continue;
-                }
+        // Get total count
+        $totalArticles = $review->articles()->count();
+        
+        // Process in chunks to avoid memory issues
+        $review->articles()->chunk($chunkSize, function ($articlesChunk) use (&$duplicates, &$processed, $review, $totalArticles) {
+            foreach ($articlesChunk as $article1) {
+                // For each article in the chunk, compare with all articles after it
+                // Use a query to get only articles with id > current article id to avoid duplicate comparisons
+                $compareArticles = $review->articles()
+                    ->where('id', '>', $article1->id)
+                    ->select('id', 'title', 'url')
+                    ->get();
 
-                // Check if same DOI
-                if ($article1->url && $article2->url && $article1->url === $article2->url) {
-                    $duplicates[] = [
-                        'article1_id' => $article1->id,
-                        'article2_id' => $article2->id,
-                        'article1_title' => $article1->title,
-                        'article2_title' => $article2->title,
-                        'similarity' => 100,
-                        'reason' => 'Same DOI/URL',
-                    ];
-                    $processed[] = [$article1->id, $article2->id];
-                    continue;
-                }
+                foreach ($compareArticles as $article2) {
+                    // Skip if already processed
+                    $pairKey = min($article1->id, $article2->id) . '-' . max($article1->id, $article2->id);
+                    if (in_array($pairKey, $processed)) {
+                        continue;
+                    }
 
-                // Check title similarity using Levenshtein distance
-                $similarity = $this->calculateSimilarity($article1->title, $article2->title);
-                if ($similarity >= 85) {
-                    $duplicates[] = [
-                        'article1_id' => $article1->id,
-                        'article2_id' => $article2->id,
-                        'article1_title' => $article1->title,
-                        'article2_title' => $article2->title,
-                        'similarity' => $similarity,
-                        'reason' => 'Similar title',
-                    ];
-                    $processed[] = [$article1->id, $article2->id];
+                    // Check if same DOI/URL
+                    if ($article1->url && $article2->url && $article1->url === $article2->url) {
+                        $duplicates[] = [
+                            'article1_id' => $article1->id,
+                            'article2_id' => $article2->id,
+                            'article1_title' => $article1->title,
+                            'article2_title' => $article2->title,
+                            'similarity' => 100,
+                            'reason' => 'Same DOI/URL',
+                        ];
+                        $processed[] = $pairKey;
+                        continue;
+                    }
+
+                    // Check title similarity using Levenshtein distance
+                    // Only calculate if titles are similar length (optimization)
+                    $len1 = strlen($article1->title);
+                    $len2 = strlen($article2->title);
+                    $lenDiff = abs($len1 - $len2);
+                    
+                    // If length difference is more than 20%, skip (unlikely to be 85% similar)
+                    if ($lenDiff / max($len1, $len2) > 0.2) {
+                        continue;
+                    }
+
+                    $similarity = $this->calculateSimilarity($article1->title, $article2->title);
+                    if ($similarity >= 85) {
+                        $duplicates[] = [
+                            'article1_id' => $article1->id,
+                            'article2_id' => $article2->id,
+                            'article1_title' => $article1->title,
+                            'article2_title' => $article2->title,
+                            'similarity' => $similarity,
+                            'reason' => 'Similar title',
+                        ];
+                        $processed[] = $pairKey;
+                    }
                 }
             }
-        }
+        });
 
         return response()->json([
             'message' => 'Duplicate detection completed',
