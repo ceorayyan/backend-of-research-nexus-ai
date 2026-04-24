@@ -7,6 +7,16 @@ use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\ArticleController;
 use App\Http\Controllers\Api\ReviewMemberController;
 
+// Health check endpoint
+Route::get('/health', function () {
+    return response()->json([
+        'status' => 'ok',
+        'timestamp' => now()->toIso8601String(),
+        'app' => config('app.name'),
+        'version' => '1.0.0',
+    ]);
+});
+
 // Public auth routes
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);

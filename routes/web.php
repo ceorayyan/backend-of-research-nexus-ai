@@ -6,14 +6,18 @@ use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-// Root route - redirect based on auth status
+// Root route - Simple API info (no session dependency)
 Route::get('/', function () {
-    if (auth()->check()) {
-        // If logged in, redirect to dashboard
-        return redirect()->route('dashboard');
-    }
-    // If not logged in, redirect to login
-    return redirect()->route('login');
+    return response()->json([
+        'name' => config('app.name', 'Research Nexus API'),
+        'version' => '1.0.0',
+        'status' => 'running',
+        'endpoints' => [
+            'health' => '/api/health',
+            'login' => '/api/login',
+            'register' => '/api/register',
+        ],
+    ]);
 });
 
 Route::get('/welcome', function () {
