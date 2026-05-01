@@ -8,10 +8,17 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['title', 'description', 'status'])]
+#[Fillable(['title', 'description', 'status', 'last_detection_run'])]
 class Review extends Model
 {
     use HasFactory;
+
+    /**
+     * The attributes that should be cast.
+     */
+    protected $casts = [
+        'last_detection_run' => 'datetime',
+    ];
 
     /**
      * Get the user that owns the review.
@@ -35,6 +42,14 @@ class Review extends Model
     public function members(): HasMany
     {
         return $this->hasMany(ReviewMember::class);
+    }
+
+    /**
+     * Get the duplicates for the review.
+     */
+    public function duplicates(): HasMany
+    {
+        return $this->hasMany(Duplicate::class);
     }
 
     /**

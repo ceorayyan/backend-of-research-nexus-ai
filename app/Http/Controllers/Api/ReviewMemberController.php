@@ -118,7 +118,9 @@ class ReviewMemberController extends Controller
             ->orderBy('created_at', 'desc')
             ->get(); // Use get() instead of paginate() since members list is usually small
 
-        return response()->json($members);
+        return response()->json([
+            'data' => $members,
+        ]);
     }
 
     /**
@@ -129,11 +131,20 @@ class ReviewMemberController extends Controller
         $user = $request->user();
 
         $member = $review->members()
-            ->where('user_id', $user->id)
+            ->where(function ($query) use ($user) {
+                $query->where('user_id', $user->id)
+                      ->orWhere('email', $user->email);
+            })
             ->first();
 
         if (!$member) {
             return response()->json(['message' => 'Not invited to this review'], 404);
+        }
+
+        // If invitation was matched by email but user_id is null, set it now
+        if ($member->user_id === null) {
+            $member->user_id = $user->id;
+            $member->save();
         }
 
         $member->accept();

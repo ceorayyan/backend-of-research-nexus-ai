@@ -58,10 +58,24 @@ class AuthController extends Controller
 
         $user = User::where('email', $validated['email'])->first();
 
-        if (!$user || !Hash::check($validated['password'], $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => ['The provided credentials are incorrect.'],
-            ]);
+        // Check if user exists
+        if (!$user) {
+            return response()->json([
+                'message' => 'No account found with this email address.',
+                'errors' => [
+                    'email' => ['No account found with this email address.']
+                ]
+            ], 404);
+        }
+
+        // Check if password is correct
+        if (!Hash::check($validated['password'], $user->password)) {
+            return response()->json([
+                'message' => 'The password you entered is incorrect.',
+                'errors' => [
+                    'password' => ['The password you entered is incorrect.']
+                ]
+            ], 401);
         }
 
         // Link pending invitations to this user (in case they were invited before signup)

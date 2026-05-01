@@ -24,8 +24,8 @@ class SettingsController extends Controller
                 
                 // If logo_path exists, generate the correct URL for the frontend
                 if (!empty($settings['logo_path'])) {
-                    // Use the backend URL to generate the logo URL
-                    $backendUrl = rtrim(config('app.url'), '/');
+                    // Use the request URL to generate the logo URL
+                    $backendUrl = rtrim(request()->getSchemeAndHttpHost(), '/');
                     $settings['logo_url'] = $backendUrl . '/storage/' . $settings['logo_path'];
                 }
                 

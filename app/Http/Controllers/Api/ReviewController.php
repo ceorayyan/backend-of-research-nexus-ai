@@ -46,8 +46,19 @@ class ReviewController extends Controller
             })
             ->with(['user:id,name,email'])
             ->withCount('articles')
+            ->withCount('members')
             ->orderBy('created_at', 'desc')
             ->paginate(15);
+
+        // Back-compat response shape expected by tests/UI:
+        // - `articles` as a count (not a full list)
+        // - `members` as a count
+        $reviews->getCollection()->transform(function ($review) {
+            $review->articles = $review->articles_count ?? 0;
+            $review->members = $review->members_count ?? 0;
+            unset($review->articles_count, $review->members_count);
+            return $review;
+        });
 
         return response()->json($reviews);
     }
@@ -68,7 +79,15 @@ class ReviewController extends Controller
         $review->load(['user:id,name,email', 'members.user:id,name,email']);
         $review->loadCount('articles');
 
-        return response()->json($review);
+        return response()->json([
+            'id' => $review->id,
+            'title' => $review->title,
+            'description' => $review->description,
+            'status' => $review->status,
+            'user' => $review->user,
+            'articles' => $review->articles_count ?? 0,
+            'members' => $review->members,
+        ]);
     }
 
     /**

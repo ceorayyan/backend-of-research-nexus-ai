@@ -27,7 +27,7 @@ return [
 
     'exposed_headers' => [],
 
-    'max_age' => 0,
+    'max_age' => 600, // Cache CORS preflight for 10 minutes
 
     'supports_credentials' => true,
 

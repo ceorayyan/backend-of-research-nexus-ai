@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\ArticleController;
 use App\Http\Controllers\Api\ReviewMemberController;
+use App\Http\Controllers\Api\DuplicateController;
 
 // Health check endpoint
 Route::get('/health', function () {
@@ -36,6 +37,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // Article routes
     Route::post('/reviews/{review}/articles', [ArticleController::class, 'store']);
     Route::get('/reviews/{review}/articles', [ArticleController::class, 'index']);
+    Route::get('/reviews/{review}/articles/screening-stats', [ArticleController::class, 'getScreeningStats']);
     Route::post('/reviews/{review}/articles/detect-duplicates', [ArticleController::class, 'detectDuplicates']);
     Route::put('/reviews/{review}/articles/bulk-update', [ArticleController::class, 'bulkUpdate']);
     Route::put('/articles/{article}', [ArticleController::class, 'update']);
@@ -48,4 +50,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/reviews/{review}/accept', [ReviewMemberController::class, 'accept']);
     Route::delete('/reviews/{review}/members/{member}', [ReviewMemberController::class, 'destroy']);
     Route::put('/reviews/{review}/members/{member}/role', [ReviewMemberController::class, 'updateRole']);
+
+    // Duplicate detection routes
+    Route::post('/reviews/{review}/duplicates/detect', [DuplicateController::class, 'detect']);
+    Route::get('/reviews/{review}/duplicates', [DuplicateController::class, 'index']);
+    Route::get('/reviews/{review}/duplicates/counts', [DuplicateController::class, 'getCounts']);
+    Route::put('/duplicates/{duplicate}/status', [DuplicateController::class, 'updateStatus']);
+    Route::post('/duplicates/{duplicate}/resolve', [DuplicateController::class, 'resolve']);
+    Route::post('/duplicates/{duplicate}/not-duplicate', [DuplicateController::class, 'markNotDuplicate']);
+    Route::delete('/duplicates/{duplicate}', [DuplicateController::class, 'destroy']);
 });
