@@ -28,8 +28,5 @@ class DatabaseSeeder extends Seeder
             'name' => 'Test Reviewer',
             'email' => 'reviewer@example.com',
         ]);
-
-        // Run review seeder
-        $this->call(ReviewSeeder::class);
     }
 }
