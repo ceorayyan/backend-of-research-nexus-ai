@@ -2,8 +2,12 @@ composer install --optimize-autoloader --no-dev
 npm install
 npm run build
 php artisan migrate:fresh --force --seed
+
+no runn
 sed -i '/FRONTEND_URL=/d' .env
 echo 'FRONTEND_URL=http://localhost:3000,https://ai-research-nexus.vercel.app' >> .env
+noo needddd
+
 php artisan config:clear
 php artisan cache:clear
 php artisan config:cache
