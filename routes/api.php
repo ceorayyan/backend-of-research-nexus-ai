@@ -31,6 +31,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/refresh', [AuthController::class, 'refresh']);
 
+    // Admin routes
+    Route::middleware('admin')->group(function () {
+        Route::post('/admin/users/bulk-import', [\App\Http\Controllers\Admin\UserController::class, 'bulkImport']);
+    });
+
     // Review routes
     Route::apiResource('reviews', ReviewController::class);
 

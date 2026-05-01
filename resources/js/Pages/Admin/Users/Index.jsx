@@ -1,4 +1,4 @@
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 
@@ -14,10 +14,18 @@ export default function AdminUsersIndex({ users }) {
     };
 
     return (
-        <AuthenticatedLayout
-            header={
-                <div className="flex justify-between items-center">
-                    <h2 className="text-3xl font-bold text-gray-900">Manage Users</h2>
+        <AdminLayout title="Manage Users">
+            <Head title="Manage Users" />
+
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-3xl font-bold text-gray-900">Users</h1>
+                <div className="flex gap-3">
+                    <Link
+                        href={route('admin.users.bulkImport')}
+                        className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                    >
+                        📥 Bulk Import
+                    </Link>
                     <Link
                         href={route('admin.users.create')}
                         className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
@@ -25,71 +33,65 @@ export default function AdminUsersIndex({ users }) {
                         ➕ Add New User
                     </Link>
                 </div>
-            }
-        >
-            <Head title="Manage Users" />
+            </div>
 
-            <div className="py-12">
-                <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
-                    <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                        <div className="overflow-x-auto">
-                            <table className="w-full">
-                                <thead className="bg-gray-100 border-b border-gray-200">
-                                    <tr>
-                                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">ID</th>
-                                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Name</th>
-                                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Email</th>
-                                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Role</th>
-                                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Created</th>
-                                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Actions</th>
+            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead className="bg-gray-100 border-b border-gray-200">
+                            <tr>
+                                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">ID</th>
+                                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Name</th>
+                                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Email</th>
+                                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Role</th>
+                                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Created</th>
+                                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                            {users && users.length > 0 ? (
+                                users.map((user) => (
+                                    <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                                        <td className="px-6 py-4 text-sm text-gray-900">{user.id}</td>
+                                        <td className="px-6 py-4 text-sm text-gray-900 font-medium">{user.name}</td>
+                                        <td className="px-6 py-4 text-sm text-gray-600">{user.email}</td>
+                                        <td className="px-6 py-4 text-sm">
+                                            <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${
+                                                user.role === 'admin'
+                                                    ? 'bg-red-100 text-red-800'
+                                                    : 'bg-blue-100 text-blue-800'
+                                            }`}>
+                                                {user.role === 'admin' ? '🔐 Admin' : '👤 User'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-gray-600">
+                                            {new Date(user.created_at).toLocaleDateString()}
+                                        </td>
+                                        <td className="px-6 py-4 text-sm space-x-2">
+                                            <Link
+                                                href={route('admin.users.edit', user.id)}
+                                                className="inline-block bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded font-medium transition-colors"
+                                            >
+                                                ✏️ Edit
+                                            </Link>
+                                            <button
+                                                onClick={() => setDeleteConfirm(user.id)}
+                                                className="inline-block bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded font-medium transition-colors"
+                                            >
+                                                🗑️ Delete
+                                            </button>
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-200">
-                                    {users && users.length > 0 ? (
-                                        users.map((user) => (
-                                            <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                                                <td className="px-6 py-4 text-sm text-gray-900">{user.id}</td>
-                                                <td className="px-6 py-4 text-sm text-gray-900 font-medium">{user.name}</td>
-                                                <td className="px-6 py-4 text-sm text-gray-600">{user.email}</td>
-                                                <td className="px-6 py-4 text-sm">
-                                                    <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${
-                                                        user.role === 'admin'
-                                                            ? 'bg-red-100 text-red-800'
-                                                            : 'bg-blue-100 text-blue-800'
-                                                    }`}>
-                                                        {user.role === 'admin' ? '🔐 Admin' : '👤 User'}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4 text-sm text-gray-600">
-                                                    {new Date(user.created_at).toLocaleDateString()}
-                                                </td>
-                                                <td className="px-6 py-4 text-sm space-x-2">
-                                                    <Link
-                                                        href={route('admin.users.edit', user.id)}
-                                                        className="inline-block bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded font-medium transition-colors"
-                                                    >
-                                                        ✏️ Edit
-                                                    </Link>
-                                                    <button
-                                                        onClick={() => setDeleteConfirm(user.id)}
-                                                        className="inline-block bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded font-medium transition-colors"
-                                                    >
-                                                        🗑️ Delete
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    ) : (
-                                        <tr>
-                                            <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
-                                                No users found
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
+                                        No users found
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
@@ -116,6 +118,6 @@ export default function AdminUsersIndex({ users }) {
                     </div>
                 </div>
             )}
-        </AuthenticatedLayout>
+        </AdminLayout>
     );
 }

@@ -19,6 +19,11 @@ class IsAdmin
             return $next($request);
         }
 
+        // Return 403 for API requests, redirect for web requests
+        if ($request->expectsJson()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
         return redirect('/dashboard')->with('error', 'Unauthorized access');
     }
 }

@@ -6,18 +6,15 @@ use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-// Root route - Simple API info (no session dependency)
+// Root route - redirect to admin if logged in, otherwise to login
 Route::get('/', function () {
-    return response()->json([
-        'name' => config('app.name', 'Research Nexus API'),
-        'version' => '1.0.0',
-        'status' => 'running',
-        'endpoints' => [
-            'health' => '/api/health',
-            'login' => '/api/login',
-            'register' => '/api/register',
-        ],
-    ]);
+    if (auth()->check()) {
+        if (auth()->user()->isAdmin()) {
+            return redirect()->route('admin.dashboard');
+        }
+        return redirect()->route('dashboard');
+    }
+    return redirect()->route('login');
 });
 
 Route::get('/welcome', function () {
@@ -55,7 +52,15 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         return Inertia::render('Admin/Dashboard', ['users' => $users]);
     })->name('dashboard');
     
+    // Bulk import routes MUST come before resource routes to avoid greedy matching
+    Route::get('users/bulk-import', function () {
+        return Inertia::render('Admin/Users/BulkImport');
+    })->name('users.bulkImport');
+    Route::post('users/bulk-import', [UserController::class, 'bulkImport']);
+    
+    // Resource routes (these are greedy and must come after specific routes)
     Route::resource('users', UserController::class);
+    
     Route::get('settings', [\App\Http\Controllers\Admin\SettingsController::class, 'index'])->name('settings.index');
     Route::post('settings', [\App\Http\Controllers\Admin\SettingsController::class, 'update'])->name('settings.update');
     Route::post('settings/remove-logo', [\App\Http\Controllers\Admin\SettingsController::class, 'removeLogo'])->name('settings.removeLogo');

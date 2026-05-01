@@ -1,4 +1,4 @@
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, useForm, router } from '@inertiajs/react';
 import { useRef, useState } from 'react';
 
@@ -49,19 +49,16 @@ export default function AdminSettings({ settings: initialSettings }) {
     const currentLogoUrl = previewUrl || initialSettings?.logo_url;
 
     return (
-        <AuthenticatedLayout
-            header={<h2 className="text-3xl font-bold text-gray-900">Website Settings</h2>}
-        >
+        <AdminLayout title="Website Settings">
             <Head title="Website Settings" />
 
-            <div className="py-12">
-                <div className="max-w-2xl mx-auto sm:px-6 lg:px-8">
-                    <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                        <div className="bg-gradient-to-r from-green-600 to-green-700 px-8 py-6">
-                            <h3 className="text-2xl font-bold text-white">Branding Configuration</h3>
-                        </div>
+            <div className="max-w-2xl mx-auto">
+                <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                    <div className="bg-gradient-to-r from-green-600 to-green-700 px-8 py-6">
+                        <h3 className="text-2xl font-bold text-white">Branding Configuration</h3>
+                    </div>
 
-                        <form onSubmit={handleSubmit} className="p-8 space-y-6">
+                    <form onSubmit={handleSubmit} className="p-8 space-y-6">
                             {/* Website Name */}
                             <div>
                                 <label className="block text-sm font-semibold text-gray-900 mb-2">
@@ -201,7 +198,6 @@ export default function AdminSettings({ settings: initialSettings }) {
                         </form>
                     </div>
                 </div>
-            </div>
-        </AuthenticatedLayout>
+        </AdminLayout>
     );
 }
