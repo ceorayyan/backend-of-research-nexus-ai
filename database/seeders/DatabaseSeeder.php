@@ -18,15 +18,21 @@ class DatabaseSeeder extends Seeder
         // Create admin user
         $this->call(AdminUserSeeder::class);
 
-        // Create test users
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        // Create test users (only if they don't exist)
+        User::firstOrCreate(
+            ['email' => 'test@example.com'],
+            [
+                'name' => 'Test User',
+                'password' => \Illuminate\Support\Facades\Hash::make('password'),
+            ]
+        );
 
-        User::factory()->create([
-            'name' => 'Test Reviewer',
-            'email' => 'reviewer@example.com',
-        ]);
+        User::firstOrCreate(
+            ['email' => 'reviewer@example.com'],
+            [
+                'name' => 'Test Reviewer',
+                'password' => \Illuminate\Support\Facades\Hash::make('password'),
+            ]
+        );
     }
 }

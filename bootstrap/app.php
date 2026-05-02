@@ -18,16 +18,19 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->api(prepend: [
-            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+            // Removed EnsureFrontendRequestsAreStateful for pure Bearer token auth
         ]);
 
         $middleware->api(append: [
             \Illuminate\Http\Middleware\HandleCors::class,
         ]);
 
-        // Exclude API routes from CSRF verification
+        // Exclude API routes and auth routes from CSRF verification
         $middleware->validateCsrfTokens(except: [
             'api/*',
+            'login',
+            'register',
+            'logout',
         ]);
 
         $middleware->alias([
