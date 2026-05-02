@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['title', 'description', 'status', 'last_detection_run'])]
+#[Fillable(['title', 'description', 'status', 'last_detection_run', 'blind_mode'])]
 class Review extends Model
 {
     use HasFactory;
@@ -18,6 +18,7 @@ class Review extends Model
      */
     protected $casts = [
         'last_detection_run' => 'datetime',
+        'blind_mode' => 'boolean',
     ];
 
     /**
@@ -86,6 +87,14 @@ class Review extends Model
                       ->orWhere('email', $user->email);
             })
             ->value('role');
+    }
+
+    /**
+     * Check if user is the owner of this review.
+     */
+    public function isOwner(User $user): bool
+    {
+        return $this->user_id === $user->id;
     }
 
     /**

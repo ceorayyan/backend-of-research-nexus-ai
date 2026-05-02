@@ -177,15 +177,67 @@ class ArticleController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
+        // Refresh review to get latest blind_mode value (avoids stale cached value)
+        $review->refresh();
+        $isBlindMode = (bool) $review->blind_mode;
+
         // Get per_page from request, default to 100
         $perPage = $request->input('per_page', 100);
         $perPage = min(max($perPage, 10), 100); // Between 10 and 100
 
-        // Only select necessary columns for better performance
+        // Get all articles with their screenings
         $articles = $review->articles()
-            ->select('id', 'reference_id', 'review_id', 'title', 'authors', 'url', 'abstract', 'journal', 'year', 'keywords', 'labels', 'exclusion_reasons', 'status', 'screening_decision_by', 'screening_notes', 'fulltext_status', 'fulltext_decision_by', 'fulltext_notes', 'fulltext_labels', 'fulltext_exclusion_reasons', 'file_path', 'fulltext_pdf_path', 'created_at')
+            ->with(['screenings' => function ($query) use ($isBlindMode, $user) {
+                // If blind mode is ON, only load current user's screenings
+                if ($isBlindMode) {
+                    $query->where('user_id', $user->id);
+                }
+                // Always load user info for screenings
+                $query->with('user:id,name');
+            }])
+            ->select('id', 'reference_id', 'review_id', 'title', 'authors', 'url', 'abstract', 'journal', 'year', 'keywords', 'file_path', 'fulltext_pdf_path', 'created_at')
             ->orderBy('created_at', 'desc')
             ->paginate($perPage);
+
+        // Transform articles to include screenings in a user-friendly format
+        $articles->getCollection()->transform(function ($article) use ($isBlindMode, $user) {
+            // Convert screenings to array format
+            $screenings = $article->screenings->map(function ($screening) use ($isBlindMode) {
+                return [
+                    'user_id' => $screening->user_id,
+                    'user_name' => $isBlindMode ? null : $screening->user->name,
+                    'decision' => $screening->decision,
+                    'notes' => $screening->notes,
+                    'labels' => $screening->labels,
+                    'exclusion_reasons' => $screening->exclusion_reasons,
+                    'updated_at' => $screening->updated_at,
+                ];
+            })->toArray();
+
+            // IMPORTANT: Unset the original relationship to prevent it from being serialized
+            unset($article->screenings);
+            
+            // Set the transformed screenings
+            $article->screenings = $screenings;
+            
+            // For backward compatibility with frontend, add the current user's decision as top-level fields
+            $userScreening = collect($screenings)->firstWhere('user_id', $user->id);
+            if ($userScreening) {
+                $article->screening_decision = $userScreening['decision'];
+                $article->screening_decision_by = $user->name; // Always use actual name for current user
+                $article->screening_notes = $userScreening['notes'];
+                $article->labels = $userScreening['labels'];
+                $article->exclusion_reasons = $userScreening['exclusion_reasons'];
+            } else {
+                $article->screening_decision = null;
+                $article->screening_decision_by = null;
+                $article->screening_notes = null;
+                $article->labels = null;
+                $article->exclusion_reasons = null;
+            }
+            
+            return $article;
+        });
 
         return response()->json($articles);
     }
@@ -202,20 +254,72 @@ class ArticleController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
+        // Get all articles count
         $total = $review->articles()->count();
         
-        // Screening statistics
-        $included = $review->articles()->where('status', 'included')->count();
-        $excluded = $review->articles()->where('status', 'excluded')->count();
-        $maybe = $review->articles()->where('status', 'undecided')->whereNotNull('screening_decision_by')->count();
-        $screened = $included + $excluded + $maybe;
-        $unscreened = $total - $screened;
-        
-        // Full-text statistics
-        $fulltext_total = $review->articles()->whereNotNull('fulltext_status')->where('fulltext_status', '!=', 'none')->count();
-        $fulltext_included = $review->articles()->where('fulltext_status', 'included')->count();
-        $fulltext_excluded = $review->articles()->where('fulltext_status', 'excluded')->count();
-        $fulltext_maybe = $review->articles()->where('fulltext_status', 'maybe')->count();
+        // If blind mode is ON, only count user's own decisions
+        if ($review->blind_mode) {
+            // Count user's own screenings
+            $included = \App\Models\ArticleScreening::whereHas('article', function ($query) use ($review) {
+                $query->where('review_id', $review->id);
+            })->where('user_id', $user->id)->where('decision', 'included')->count();
+            
+            $excluded = \App\Models\ArticleScreening::whereHas('article', function ($query) use ($review) {
+                $query->where('review_id', $review->id);
+            })->where('user_id', $user->id)->where('decision', 'excluded')->count();
+            
+            $maybe = \App\Models\ArticleScreening::whereHas('article', function ($query) use ($review) {
+                $query->where('review_id', $review->id);
+            })->where('user_id', $user->id)->where('decision', 'undecided')->count();
+            
+            $screened = $included + $excluded + $maybe;
+            $unscreened = $total - $screened;
+            
+            // Full-text statistics - still using old columns for now
+            $fulltext_total = $review->articles()->whereNotNull('fulltext_status')->where('fulltext_status', '!=', 'none')->where('fulltext_decision_by', $user->name)->count();
+            $fulltext_included = $review->articles()->where('fulltext_status', 'included')->where('fulltext_decision_by', $user->name)->count();
+            $fulltext_excluded = $review->articles()->where('fulltext_status', 'excluded')->where('fulltext_decision_by', $user->name)->count();
+            $fulltext_maybe = $review->articles()->where('fulltext_status', 'maybe')->where('fulltext_decision_by', $user->name)->count();
+        } else {
+            // Blind mode OFF - show all team's work
+            $included = \App\Models\ArticleScreening::whereHas('article', function ($query) use ($review) {
+                $query->where('review_id', $review->id);
+            })->where('decision', 'included')->count();
+            
+            $excluded = \App\Models\ArticleScreening::whereHas('article', function ($query) use ($review) {
+                $query->where('review_id', $review->id);
+            })->where('decision', 'excluded')->count();
+            
+            $maybe = \App\Models\ArticleScreening::whereHas('article', function ($query) use ($review) {
+                $query->where('review_id', $review->id);
+            })->where('decision', 'undecided')->count();
+            
+            // Count unique articles that have been screened
+            $screened = \App\Models\ArticleScreening::whereHas('article', function ($query) use ($review) {
+                $query->where('review_id', $review->id);
+            })->distinct('article_id')->count('article_id');
+            
+            $unscreened = $total - $screened;
+
+            // Count conflict articles: articles where at least 2 users have DIFFERENT decisions
+            // (e.g. one included, one excluded)
+            $conflicts = \DB::table('article_screenings as s1')
+                ->join('articles as a', 'a.id', '=', 's1.article_id')
+                ->join('article_screenings as s2', function ($join) {
+                    $join->on('s2.article_id', '=', 's1.article_id')
+                         ->whereColumn('s2.user_id', '!=', 's1.user_id')
+                         ->whereColumn('s2.decision', '!=', 's1.decision');
+                })
+                ->where('a.review_id', $review->id)
+                ->distinct('s1.article_id')
+                ->count('s1.article_id');
+            
+            // Full-text statistics
+            $fulltext_total = $review->articles()->whereNotNull('fulltext_status')->where('fulltext_status', '!=', 'none')->count();
+            $fulltext_included = $review->articles()->where('fulltext_status', 'included')->count();
+            $fulltext_excluded = $review->articles()->where('fulltext_status', 'excluded')->count();
+            $fulltext_maybe = $review->articles()->where('fulltext_status', 'maybe')->count();
+        }
 
         return response()->json([
             'total' => $total,
@@ -224,6 +328,7 @@ class ArticleController extends Controller
             'included' => $included,
             'excluded' => $excluded,
             'maybe' => $maybe,
+            'conflicts' => $conflicts,
             'fulltext_total' => $fulltext_total,
             'fulltext_included' => $fulltext_included,
             'fulltext_excluded' => $fulltext_excluded,
@@ -311,7 +416,6 @@ class ArticleController extends Controller
 
         $validated = $request->validate([
             'screening_decision' => 'required|in:included,excluded,undecided',
-            'screening_decision_by' => 'nullable|string',
             'screening_notes' => 'nullable|string',
             'labels' => 'nullable|array',
             'labels.*' => 'string',
@@ -319,17 +423,61 @@ class ArticleController extends Controller
             'exclusion_reasons.*' => 'string',
         ]);
 
-        $article->update([
-            'status' => $validated['screening_decision'],
-            'screening_decision_by' => $validated['screening_decision_by'] ?? $article->screening_decision_by,
-            'screening_notes' => $validated['screening_notes'] ?? $article->screening_notes,
-            'labels' => $validated['labels'] ?? $article->labels,
-            'exclusion_reasons' => $validated['exclusion_reasons'] ?? $article->exclusion_reasons,
-        ]);
+        // Create or update screening in article_screenings table
+        // Only update fields that were actually sent in the request
+        $updateData = ['decision' => $validated['screening_decision']];
+        
+        if (array_key_exists('screening_notes', $validated)) {
+            $updateData['notes'] = $validated['screening_notes'];
+        }
+        if (array_key_exists('labels', $validated)) {
+            $updateData['labels'] = $validated['labels'];
+        }
+        if (array_key_exists('exclusion_reasons', $validated)) {
+            $updateData['exclusion_reasons'] = $validated['exclusion_reasons'];
+        }
+
+        // Get existing screening to preserve fields not being updated
+        $existing = \App\Models\ArticleScreening::where('article_id', $article->id)
+            ->where('user_id', $user->id)
+            ->first();
+
+        if ($existing) {
+            // Merge: only overwrite fields that were sent
+            $existing->decision = $updateData['decision'];
+            if (isset($updateData['notes'])) $existing->notes = $updateData['notes'];
+            if (isset($updateData['labels'])) $existing->labels = $updateData['labels'];
+            if (isset($updateData['exclusion_reasons'])) $existing->exclusion_reasons = $updateData['exclusion_reasons'];
+            $existing->save();
+            $screening = $existing;
+        } else {
+            $screening = \App\Models\ArticleScreening::create([
+                'article_id' => $article->id,
+                'user_id' => $user->id,
+                'decision' => $updateData['decision'],
+                'notes' => $updateData['notes'] ?? null,
+                'labels' => $updateData['labels'] ?? null,
+                'exclusion_reasons' => $updateData['exclusion_reasons'] ?? null,
+            ]);
+        }
+
+        // Load the screening with user info for response
+        $screening->load('user:id,name');
 
         return response()->json([
             'message' => 'Screening updated successfully',
-            'data' => $article,
+            'data' => [
+                'article_id' => $article->id,
+                'screening' => [
+                    'user_id' => $screening->user_id,
+                    'user_name' => $screening->user->name,
+                    'decision' => $screening->decision,
+                    'notes' => $screening->notes,
+                    'labels' => $screening->labels,
+                    'exclusion_reasons' => $screening->exclusion_reasons,
+                    'updated_at' => $screening->updated_at,
+                ],
+            ],
         ]);
     }
 

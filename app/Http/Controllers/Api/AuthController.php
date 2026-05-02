@@ -81,6 +81,9 @@ class AuthController extends Controller
         // Link pending invitations to this user (in case they were invited before signup)
         $this->linkPendingInvitations($user);
 
+        // Update last login timestamp
+        $user->update(['last_login_at' => now()]);
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([

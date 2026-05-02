@@ -21,7 +21,7 @@ class Article extends Model
         'fulltext_exclusion_reasons' => 'array',
     ];
 
-    protected $appends = ['screening_decision'];
+    protected $appends = [];
 
     /**
      * Boot the model and set up event listeners.
@@ -39,14 +39,6 @@ class Article extends Model
                 $article->reference_id = 'STX-' . str_pad($nextId, 8, '0', STR_PAD_LEFT);
             }
         });
-    }
-
-    /**
-     * Get the screening decision (alias for status).
-     */
-    public function getScreeningDecisionAttribute(): ?string
-    {
-        return $this->status;
     }
 
     /**
@@ -71,5 +63,13 @@ class Article extends Model
     public function duplicatesAsArticle2(): HasMany
     {
         return $this->hasMany(Duplicate::class, 'article2_id');
+    }
+
+    /**
+     * Get all screening decisions for this article.
+     */
+    public function screenings(): HasMany
+    {
+        return $this->hasMany(ArticleScreening::class);
     }
 }

@@ -84,6 +84,7 @@ class ReviewController extends Controller
             'title' => $review->title,
             'description' => $review->description,
             'status' => $review->status,
+            'blind_mode' => $review->blind_mode,
             'user' => $review->user,
             'articles' => $review->articles_count ?? 0,
             'members' => $review->members,
@@ -131,6 +132,44 @@ class ReviewController extends Controller
         $review->delete();
 
         return response()->json(['message' => 'Review deleted successfully']);
+    }
+
+    /**
+     * Toggle blind mode for a review (owner only).
+     */
+    public function toggleBlindMode(Review $review, Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        // Only owner can toggle blind mode
+        if ($review->user_id !== $user->id) {
+            \Log::warning('Permission denied: Blind mode toggle', [
+                'user_id' => $user->id,
+                'review_id' => $review->id,
+                'action' => 'toggle_blind_mode',
+                'user_role' => $review->getMemberRole($user) ?? 'non-member',
+                'ip_address' => $request->ip(),
+            ]);
+            return response()->json(['message' => 'Only the review owner can toggle blind mode'], 403);
+        }
+
+        $oldValue = $review->blind_mode;
+        $review->update(['blind_mode' => !$review->blind_mode]);
+
+        \Log::info('Blind mode toggled', [
+            'user_id' => $user->id,
+            'review_id' => $review->id,
+            'blind_mode' => $review->blind_mode,
+            'previous_value' => $oldValue,
+            'timestamp' => now(),
+        ]);
+
+        return response()->json([
+            'message' => 'Blind mode ' . ($review->blind_mode ? 'enabled' : 'disabled'),
+            'data' => [
+                'blind_mode' => $review->blind_mode,
+            ],
+        ]);
     }
 
     /**

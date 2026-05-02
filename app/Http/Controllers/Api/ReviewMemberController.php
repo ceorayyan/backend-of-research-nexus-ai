@@ -20,14 +20,22 @@ class ReviewMemberController extends Controller
     {
         $user = $request->user();
 
-        // Only creator or coordinator can invite
-        if (!$review->isCoordinator($user)) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        // Only owner or collaborator can invite
+        $memberRole = $review->getMemberRole($user);
+        if ($review->user_id !== $user->id && $memberRole !== 'collaborator') {
+            \Log::warning('Permission denied: Invite member', [
+                'user_id' => $user->id,
+                'review_id' => $review->id,
+                'action' => 'invite_member',
+                'user_role' => $memberRole ?? 'non-member',
+                'ip_address' => $request->ip(),
+            ]);
+            return response()->json(['message' => 'Insufficient permissions to invite members'], 403);
         }
 
         $validated = $request->validate([
             'email' => 'required|email',
-            'role' => 'required|in:reviewer,coordinator,observer',
+            'role' => 'required|in:collaborator,reviewer,coordinator',
             'message' => 'nullable|string',
         ]);
 
@@ -76,7 +84,8 @@ class ReviewMemberController extends Controller
                     $review,
                     $user,
                     $invitedUser,
-                    $validated['message'] ?? null
+                    $validated['message'] ?? null,
+                    $validated['role']
                 ));
             } else {
                 // Send invitation to non-registered user
@@ -84,7 +93,8 @@ class ReviewMemberController extends Controller
                     $review,
                     $user,
                     null,
-                    $validated['message'] ?? null
+                    $validated['message'] ?? null,
+                    $validated['role']
                 ));
             }
         } catch (\Exception $e) {
@@ -200,10 +210,21 @@ class ReviewMemberController extends Controller
         }
 
         $validated = $request->validate([
-            'role' => 'required|in:reviewer,coordinator,observer',
+            'role' => 'required|in:collaborator,reviewer,coordinator',
         ]);
 
+        $oldRole = $member->role;
         $member->update(['role' => $validated['role']]);
+
+        \Log::info('Member role changed', [
+            'user_id' => $user->id,
+            'review_id' => $review->id,
+            'target_user_id' => $member->user_id,
+            'target_email' => $member->email,
+            'old_role' => $oldRole,
+            'new_role' => $validated['role'],
+            'timestamp' => now(),
+        ]);
 
         return response()->json([
             'message' => 'Member role updated successfully',

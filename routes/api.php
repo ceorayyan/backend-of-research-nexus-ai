@@ -38,6 +38,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Review routes
     Route::apiResource('reviews', ReviewController::class);
+    Route::patch('/reviews/{review}/blind-mode', [ReviewController::class, 'toggleBlindMode']);
 
     // Article routes
     Route::post('/reviews/{review}/articles', [ArticleController::class, 'store']);

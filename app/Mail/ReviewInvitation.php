@@ -19,7 +19,8 @@ class ReviewInvitation extends Mailable
         public Review $review,
         public User $inviter,
         public ?User $invitee = null,
-        public ?string $message = null
+        public ?string $customMessage = null,
+        public string $role = 'reviewer'
     ) {}
 
     public function envelope(): Envelope
@@ -40,12 +41,13 @@ class ReviewInvitation extends Mailable
                 'review' => $this->review,
                 'inviter' => $this->inviter,
                 'invitee' => $this->invitee,
-                'message' => $this->message,
+                'customMessage' => $this->customMessage ? (string)$this->customMessage : null,
+                'role' => (string)$this->role,
                 'acceptUrl' => $this->invitee 
                     ? url("/reviews/{$this->review->id}/accept")
                     : url("/signup?redirect=/reviews/{$this->review->id}/accept"),
                 'isRegistered' => $this->invitee !== null,
-                'websiteName' => $settings['website_name'] ?? 'Research Nexus',
+                'websiteName' => $settings['website_name'] ?? 'StataNex.Ai',
             ],
         );
     }

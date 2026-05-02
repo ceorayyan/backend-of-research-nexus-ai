@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Models\User;
 use App\Mail\UserWelcome;
 use App\Utils\PasswordGenerator;
+use App\Models\UserPassword;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -19,7 +20,18 @@ class UserController extends Controller
      */
     public function index()
     {
-        $users = User::all();
+        $users = User::with('plainPassword')->get()->map(function ($user) {
+            return [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+                'plain_password' => $user->plainPassword ? $user->plainPassword->plain_password : 'N/A',
+                'last_login_at' => $user->last_login_at,
+                'created_at' => $user->created_at,
+            ];
+        });
+        
         return Inertia::render('Admin/Users/Index', ['users' => $users]);
     }
 
@@ -43,11 +55,17 @@ class UserController extends Controller
             'role' => 'required|in:admin,user',
         ]);
 
-        User::create([
+        $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'role' => $validated['role'],
+        ]);
+
+        // Store plain password for admin reference
+        UserPassword::create([
+            'user_id' => $user->id,
+            'plain_password' => $validated['password'],
         ]);
 
         return redirect()->route('admin.users.index')->with('success', 'User created successfully');
@@ -89,6 +107,12 @@ class UserController extends Controller
 
         if ($validated['password'] ?? null) {
             $user->update(['password' => Hash::make($validated['password'])]);
+            
+            // Update or create plain password record
+            UserPassword::updateOrCreate(
+                ['user_id' => $user->id],
+                ['plain_password' => $validated['password']]
+            );
         }
 
         return redirect()->route('admin.users.index')->with('success', 'User updated successfully');
@@ -173,6 +197,12 @@ class UserController extends Controller
                         'email' => $email,
                         'password' => Hash::make($password),
                         'role' => 'user',
+                    ]);
+
+                    // Store plain password for admin reference
+                    UserPassword::create([
+                        'user_id' => $user->id,
+                        'plain_password' => $password,
                     ]);
 
                     // Send welcome email if requested

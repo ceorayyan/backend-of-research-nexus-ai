@@ -22,19 +22,17 @@
         <div class="content">
             <p>Hi{{ $invitee ? ' ' . $invitee->name : '' }},</p>
             
-            <p><strong>{{ $inviter->name }}</strong> has invited you to join a systematic review on {{ $websiteName }}:</p>
+            <p><strong>{{ $inviter->name }}</strong> has invited you to be a <strong>{{ $role }}</strong> on a systematic review on {{ $websiteName }}:</p>
             
             <div class="review-details">
                 <h3>{{ $review->title }}</h3>
                 @if($review->description)
                     <p>{{ $review->description }}</p>
                 @endif
+                <p><strong>Your Role:</strong> {{ $role }}</p>
             </div>
             
-            @if($message)
-                <p><strong>Message from {{ $inviter->name }}:</strong></p>
-                <p>{{ $message }}</p>
-            @endif
+            <p>You are invited to collaborate on this systematic review.</p>
             
             @if(!$isRegistered)
                 <div class="notice">
