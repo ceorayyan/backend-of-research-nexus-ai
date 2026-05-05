@@ -5,7 +5,7 @@ php artisan migrate --force --seed
 
 no runn
 sed -i '/FRONTEND_URL=/d' .env
-echo 'FRONTEND_URL=http://localhost:3000,https://ai-research-nexus.vercel.app' >> .env
+echo 'FRONTEND_URL=https://statanex.com' >> .env
 noo needddd
 
 php artisan config:clear

@@ -38,7 +38,7 @@ class UserWelcome extends Mailable
         // Get frontend URL from config or use provided one
         $appUrl = $this->appUrl;
         if (!$appUrl) {
-            $frontendUrls = config('app.frontend_url', 'http://localhost:3000');
+            $frontendUrls = config('app.frontend_url', 'https://statanex.com');
             // If multiple URLs are configured (comma-separated), use the first one
             $appUrl = explode(',', $frontendUrls)[0];
             $appUrl = trim($appUrl);

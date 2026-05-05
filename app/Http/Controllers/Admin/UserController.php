@@ -209,7 +209,7 @@ class UserController extends Controller
                     if ($sendEmails) {
                         try {
                             // Get frontend URL from config
-                            $frontendUrls = config('app.frontend_url', 'http://localhost:3000');
+                            $frontendUrls = config('app.frontend_url', 'https://statanex.com');
                             $appUrl = explode(',', $frontendUrls)[0];
                             $appUrl = trim($appUrl);
                             
